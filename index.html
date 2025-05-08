@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>College Document System - Dashboards</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>College Document System</h1>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="login-form">
+      <h2>Teacher Login</h2>
+      <form id="teacherLoginForm">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" placeholder="Enter username" required>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" placeholder="Enter password" required>
+        <button type="submit">Login</button>
+      </form>
+      <p style="text-align: center; margin-top: 10px;">
+        <a href="#" onclick="showStudentDashboard()">Go to Student Dashboard</a>
+      </p>
+    </div>
+
+    <!-- Teacher Dashboard -->
+    <div id="teacherDashboard" class="dashboard">
+      <h2>Teacher Dashboard</h2>
+      <p style="text-align: center;"><button onclick="logout()">Logout</button></p>
+
+      <!-- Upload Form -->
+      <div class="form-group">
+        <h3>Upload Documents</h3>
+        <form id="uploadForm" enctype="multipart/form-data">
+          <label for="course">Select Course:</label>
+          <select id="course" required>
+            <option value="">Select a course</option>
+            <option value="CS101">CS101 - Intro to Programming</option>
+            <option value="MATH201">MATH201 - Calculus</option>
+            <option value="ENG301">ENG301 - Literature</option>
+          </select>
+
+          <label for="documentType">Document Type:</label>
+          <select id="documentType" required>
+            <option value="">Select document type</option>
+            <option value="assignment">Assignment</option>
+            <option value="notes">Notes</option>
+            <option value="pdf">PDF</option>
+            <option value="other">Other</option>
+          </select>
+
+          <label for="title">Document Title:</label>
+          <input type="text" id="title" placeholder="Enter document title" required>
+
+          <label for="file">Upload File:</label>
+          <input type="file" id="file" accept=".pdf,.doc,.docx,.txt" required>
+
+          <button type="submit">Upload Document</button>
+        </form>
+      </div>
+
+      <!-- Uploaded Documents -->
+      <div class="document-list">
+        <h3>Your Uploaded Documents</h3>
+        <div id="teacherDocumentList"></div>
+      </div>
+    </div>
+
+    <!-- Student Dashboard -->
+    <div id="studentDashboard" class="dashboard">
+      <h2>Student Dashboard</h2>
+      <p style="text-align: center;"><a href="#" onclick="showLoginForm()">Go to Teacher Login</a></p>
+
+      <div class="access-group">
+        <h3>Access Documents</h3>
+        <label for="studentCourse">Select Course:</label>
+        <select id="studentCourse" onchange="filterStudentDocuments()">
+          <option value="">All Courses</option>
+          <option value="CS101">CS101 - Intro to Programming</option>
+          <option value="MATH201">MATH201 - Calculus</option>
+          <option value="ENG301">ENG301 - Literature</option>
+        </select>
+
+        <div class="document-list">
+          <h3>Available Documents (College Website View)</h3>
+          <div id="studentDocumentList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let documents = [];
+    const teacherCredentials = { username: 'teacher', password: 'pass123' };
+    let isAuthenticated = false;
+
+    displayStudentDocuments();
+    showLoginForm();
+
+    document.getElementById('teacherLoginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      if (username === teacherCredentials.username && password === teacherCredentials.password) {
+        isAuthenticated = true;
+        showTeacherDashboard();
+        displayTeacherDocuments();
+        this.reset();
+      } else {
+        alert('Invalid username or password');
+      }
+    });
+
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!isAuthenticated) {
+        alert('Please log in to upload documents');
+        showLoginForm();
+        return;
+      }
+
+      const course = document.getElementById('course').value;
+      const documentType = document.getElementById('documentType').value;
+      const title = document.getElementById('title').value;
+      const fileInput = document.getElementById('file');
+      const file = fileInput.files[0];
+
+      if (file) {
+        const blobURL = URL.createObjectURL(file);
+
+        const newDocument = {
+          id: documents.length + 1,
+          course,
+          type: documentType,
+          title,
+          file: file.name,
+          blobURL: blobURL,
+          uploadedBy: 'teacher'
+        };
+
+        documents.push(newDocument);
+        displayTeacherDocuments();
+        displayStudentDocuments();
+        alert('Document uploaded successfully!');
+        this.reset();
+      }
+    });
+
+    function displayTeacherDocuments() {
+      const list = document.getElementById('teacherDocumentList');
+      list.innerHTML = '';
+
+      const teacherDocs = documents.filter(doc => doc.uploadedBy === 'teacher');
+      teacherDocs.forEach(doc => {
+        const item = document.createElement('div');
+        item.className = 'document-item';
+        item.innerHTML = `
+          <div>
+            <strong>${doc.title}</strong> (${doc.type}) - Course: ${doc.course}<br>
+            <a href="${doc.blobURL}" download="${doc.file}">Download</a>
+          </div>
+          <button class="delete-btn" onclick="deleteDocument(${doc.id})">Delete</button>
+        `;
+        list.appendChild(item);
+      });
+
+      if (teacherDocs.length === 0) {
+        list.innerHTML = '<p>No documents uploaded.</p>';
+      }
+    }
+
+    function displayStudentDocuments(courseFilter = '') {
+      const list = document.getElementById('studentDocumentList');
+      list.innerHTML = '';
+
+      const filtered = courseFilter
+        ? documents.filter(doc => doc.course === courseFilter)
+        : documents;
+
+      filtered.forEach(doc => {
+        const item = document.createElement('div');
+        item.className = 'document-item';
+        item.innerHTML = `
+          <strong>${doc.title}</strong> (${doc.type}) - Course: ${doc.course}<br>
+          <a href="${doc.blobURL}" download="${doc.file}">Download</a>
+        `;
+        list.appendChild(item);
+      });
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<p>No documents available.</p>';
+      }
+    }
+
+    function filterStudentDocuments() {
+      const course = document.getElementById('studentCourse').value;
+      displayStudentDocuments(course);
+    }
+
+    function deleteDocument(id) {
+      if (!isAuthenticated) {
+        alert('Please log in to delete documents');
+        showLoginForm();
+        return;
+      }
+      if (confirm('Are you sure you want to delete this document?')) {
+        documents = documents.filter(doc => doc.id !== id);
+        displayTeacherDocuments();
+        displayStudentDocuments(document.getElementById('studentCourse').value);
+        alert('Document deleted successfully!');
+      }
+    }
+
+    function showLoginForm() {
+      isAuthenticated = false;
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('teacherDashboard').style.display = 'none';
+      document.getElementById('studentDashboard').style.display = 'none';
+    }
+
+    function showTeacherDashboard() {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('teacherDashboard').style.display = 'block';
+      document.getElementById('studentDashboard').style.display = 'none';
+    }
+
+    function showStudentDashboard() {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('teacherDashboard').style.display = 'none';
+      document.getElementById('studentDashboard').style.display = 'block';
+      filterStudentDocuments();
+    }
+
+    function logout() {
+      isAuthenticated = false;
+      showLoginForm();
+    }
+  </script>
+</body>
+</html>
